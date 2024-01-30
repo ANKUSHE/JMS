@@ -1,0 +1,83 @@
+#code for Sender
+
+
+import javax.jms.Connection;
+import javax.jms.*;  
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+import javax.jms.ConnectionFactory;
+import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
+import javax.jms.Queue;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+
+import org.apache.activemq.ActiveMQConnectionFactory;
+
+public class SendClass {
+
+	
+	 public static void main(String[] args) {
+		 
+		 String url_link = "https://ibics.co.in/z/flist.txt";
+		 		 
+	        try {
+	        	URL url = new URL(url_link);
+	            URLConnection urlConnection = url.openConnection();
+	            BufferedReader in = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+
+	            String inputLine;
+	            
+	         // Create a ConnectionFactory
+	            ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("tcp://localhost:61616");
+
+	            // Create a Connection
+	            Connection connection = connectionFactory.createConnection();
+	            connection.start();
+
+	            // Create a Session
+	            Session session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+
+	            // Create a Queue (if it doesn't exist already)
+	            Queue queue = session.createQueue("QueueName"); // Queue name
+	            Queue ackQueue = session.createQueue("ackQueue");
+
+	            // Create a MessageProducer
+	            MessageProducer producer = session.createProducer(queue);
+	            MessageConsumer ackConsumer = session.createConsumer(ackQueue);
+
+	            do {
+	            	inputLine = in.readLine();
+	            	// Create a text message
+		            TextMessage message = session.createTextMessage(inputLine);
+		            
+
+		            // Send the message
+		            producer.send(message);
+		            Thread.sleep(3000);
+		            TextMessage ackMsg = (TextMessage) ackConsumer.receive();
+		            System.out.println(ackMsg.getText());
+		            if("ACK".equals(ackMsg.getText())) {		            	
+		            	System.out.println("Message sent to queue");
+		            }
+		            else {
+		            	System.out.println("Acknowledgement not received");
+		            	break;
+		            }
+	            }
+	            while (inputLine != null);
+
+	            in.close();
+	
+	            // Clean up resources
+	            session.close();
+	            connection.close();
+
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+	    }
+	
+}
